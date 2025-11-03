@@ -1,0 +1,220 @@
+"""
+도서 관리 프로그램 (단순 연결 리스트 기반)
+
+요구사항 요약
+- 단순 연결 리스트(Node/LinkedList) 자료구조로 도서(Book) 객체를 저장/관리
+- 기능: 도서 추가(책 번호 중복 불가), 삭제(책 제목), 조회(책 제목), 전체 목록 출력, 종료
+- 메뉴 기반 CLI 인터페이스
+
+주의: 본 파일은 외부 모듈에 의존하지 않도록 단일 파일로 구성했습니다.
+"""
+
+# 1) Node 클래스 (사양에 맞춤)
+class Node:  # 단순 연결 리스트를 위한 노드 클래스
+    def __init__(self, elem, next=None):
+        self.data = elem
+        self.link = next
+
+    def append(self, new):  # 현재 노드 다음에 new 노드를 삽입
+        if new is not None:
+            new.link = self.link
+            self.link = new
+
+    def popNext(self):  # 현재 노드의 다음 노드를 삭제한 후 반환
+        deleted_node = self.link
+        if deleted_node is not None:
+            self.link = deleted_node.link
+            deleted_node.link = None
+        return deleted_node
+
+
+# 2) LinkedList 클래스 (필수 탐색 메서드 포함)
+class LinkedList:  # 단순 연결 리스트 클래스
+    def __init__(self):
+        self.head = None
+
+    def isEmpty(self):
+        return self.head is None
+
+    def size(self):
+        cnt = 0
+        ptr = self.head
+        while ptr is not None:
+            cnt += 1
+            ptr = ptr.link
+        return cnt
+
+    def getNode(self, pos):
+        if pos < 0:
+            return None
+        i, ptr = 0, self.head
+        while ptr is not None and i < pos:
+            ptr = ptr.link
+            i += 1
+        return ptr
+
+    def insert_end(self, elem):  # 맨 뒤에 삽입
+        new = Node(elem)
+        if self.head is None:
+            self.head = new
+            return
+        ptr = self.head
+        while ptr.link is not None:
+            ptr = ptr.link
+        ptr.append(new)
+
+    def delete(self, pos):  # pos 위치 노드 삭제 후 Book 반환, 없으면 None
+        if pos < 0 or self.head is None:
+            return None
+        if pos == 0:
+            deleted = self.head
+            self.head = deleted.link
+            deleted.link = None
+            return deleted.data
+        before = self.getNode(pos - 1)
+        if before is None:
+            return None
+        deleted = before.popNext()
+        return deleted.data if deleted is not None else None
+
+    # 필수: 책 제목으로 도서를 찾기
+    def find_by_title(self, title):  # 책 제목으로 리스트에서 도서를 찾기
+        ptr = self.head
+        while ptr is not None:
+            if getattr(ptr.data, "title", None) == title:
+                return ptr.data
+            ptr = ptr.link
+        return None
+
+    # 필수: 책 제목으로 위치(pos) 찾기 (0-based, 없으면 -1)
+    def find_pos_by_title(self, title):  # 책 제목으로 리스트에서 도서의 위치를 찾기
+        idx, ptr = 0, self.head
+        while ptr is not None:
+            if getattr(ptr.data, "title", None) == title:
+                return idx
+            idx += 1
+            ptr = ptr.link
+        return -1
+
+    # 보조: 책 번호로 도서 찾기/중복 체크
+    def find_by_id(self, book_id):
+        ptr = self.head
+        while ptr is not None:
+            if getattr(ptr.data, "book_id", None) == book_id:
+                return ptr.data
+            ptr = ptr.link
+        return None
+
+    # 반복자: 저장된 Book 객체를 순회
+    def items(self):
+        ptr = self.head
+        while ptr is not None:
+            yield ptr.data
+            ptr = ptr.link
+
+
+# 3) Book 클래스
+class Book:
+    def __init__(self, book_id: int, title: str, author: str, year: int):
+        self.book_id = int(book_id)
+        self.title = str(title)
+        self.author = str(author)
+        self.year = int(year)
+
+    def __str__(self):
+        return f"[책 번호: {self.book_id}, 제목: {self.title}, 저자: {self.author}, 출판 연도: {self.year}]"
+
+
+# 4) BookManagement 클래스 (메뉴 구동)
+class BookManagement:
+    def __init__(self):
+        self.books = LinkedList()
+
+    # 도서 추가 (책 번호 중복 불가)
+    def add_book(self, book_id, title, author, year):
+        if self.books.find_by_id(book_id) is not None:
+            print("동일한 책 번호가 이미 존재합니다. 추가에 실패했습니다.")
+            return
+        book = Book(book_id, title, author, year)
+        self.books.insert_end(book)
+        print(f"도서 '{title}' 가 추가되었습니다.")
+
+    # 도서 삭제 (책 제목)
+    def remove_book(self, title):
+        pos = self.books.find_pos_by_title(title)
+        if pos == -1:
+            print("해당 책 제목의 도서를 찾을 수 없습니다.")
+            return
+        self.books.delete(pos)
+        print(f"책 제목 '{title}'의 도서가 삭제되었습니다.")
+
+    # 도서 조회 (책 제목)
+    def search_book(self, title):
+        book = self.books.find_by_title(title)
+        if book is None:
+            print("해당 책 제목의 도서를 찾을 수 없습니다.")
+        else:
+            print(book)
+
+    # 전체 도서 목록 출력
+    def display_books(self):
+        if self.books.isEmpty():
+            print("현재 등록된 도서가 없습니다.")
+            return
+        print("현재 등록된 도서 목록:")
+        for b in self.books.items():
+            print(b)
+
+    # 메뉴/입력 보조
+    def _input_int(self, prompt):
+        try:
+            return int(input(prompt).strip())
+        except ValueError:
+            return None
+
+    def run(self):
+        while True:
+            print("=== 도서 관리 프로그램 ===")
+            print("1. 도서 추가")
+            print("2. 도서 삭제 (책 제목으로 삭제)")
+            print("3. 도서 조회 (책 제목으로 조회)")
+            print("4. 전체 도서 목록 출력")
+            print("5. 종료")
+            choice = input("\n메뉴를 선택하세요: ").strip()
+
+            if choice == "1":
+                book_id = self._input_int("책 번호를 입력하세요: ")
+                if book_id is None:
+                    print("책 번호는 정수여야 합니다.")
+                    continue
+                title = input("책 제목을 입력하세요: ").strip()
+                author = input("저자를 입력하세요: ").strip()
+                year = self._input_int("출판 연도를 입력하세요: ")
+                if year is None:
+                    print("출판 연도는 정수여야 합니다.")
+                    continue
+                self.add_book(book_id, title, author, year)
+
+            elif choice == "2":
+                title = input("삭제할 책 제목을 입력하세요: ").strip()
+                self.remove_book(title)
+
+            elif choice == "3":
+                title = input("조회할 책 제목을 입력하세요: ").strip()
+                self.search_book(title)
+
+            elif choice == "4":
+                self.display_books()
+
+            elif choice == "5":
+                print("프로그램을 종료합니다.")
+                break
+
+            else:
+                print("올바른 메뉴 번호를 선택하세요.")
+            print()
+
+
+if __name__ == "__main__":
+    BookManagement().run()
+
